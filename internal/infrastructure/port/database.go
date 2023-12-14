@@ -13,16 +13,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Database interface {
-	GetDB() *sql.DB
-	Close() error
-}
-
-type sqliteDatabase struct {
-	db *sql.DB
-}
-
-func NewSQLiteDatabasePort(filePath string) (Database, error) {
+func NewSQLiteDatabasePort(filePath string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open an sqlite3 connection: %w", err)
@@ -37,7 +28,7 @@ func NewSQLiteDatabasePort(filePath string) (Database, error) {
 	}
 
 	sourceInstance := bindata.Resource(
-		migrations.AssetNames(), 
+		migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
 		},
@@ -54,17 +45,9 @@ func NewSQLiteDatabasePort(filePath string) (Database, error) {
 	}
 
 	err = migration.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange){
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	return &sqliteDatabase{db: db}, nil
-}
-
-func (s *sqliteDatabase) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *sqliteDatabase) Close() error {
-	return s.db.Close()
+	return db, nil
 }

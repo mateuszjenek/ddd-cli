@@ -28,49 +28,41 @@ import (
 	"github.com/mateuszjenek/ddd-cli/internal/infrastructure"
 	"github.com/mateuszjenek/ddd-cli/internal/infrastructure/port"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var author string
-var message string
+var registerCustomerFirstName string
+var registerCustomerLastName string
+var registerCustomerEmail string
 
-// addCmd represents the add command
-var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+// registerCmd represents the register command
+var registerCmd = &cobra.Command{
+	Use:   "register",
+	Short: "Register new customer",
+	Long: `This command register new customer to the database.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dbPort, err := port.NewSQLiteDatabasePort("./notes.db")
+		db, err := port.NewSQLiteDatabasePort(viper.GetString("db_file"))
 		if err != nil {
-			return fmt.Errorf("failed to create a database port: %w", err)
+			return fmt.Errorf("failed to create new sqlite database port: %v", err)
 		}
-		defer dbPort.Close()
-
-		repository := infrastructure.NewNoteLocalRepository(dbPort)
-		useCase := application.NewCreateNoteUseCase(repository)
-		result, err := useCase.CreateNote(message, author)
+		customerService := infrastructure.NewSqlCustomerRepository(db)
+		registerNewCustomer := application.NewRegisterNewCustomer(customerService)
+		customer, err := registerNewCustomer.RegisterNewCustomer(registerCustomerFirstName, registerCustomerLastName, registerCustomerEmail)
 		if err != nil {
-			return fmt.Errorf("create note use case returned an error: %v", err)
+			return fmt.Errorf("failed to register new customer: %v", err)
 		}
-
-		fmt.Println("-- New note created --")
-		fmt.Println("ID: ", result.Note.Id)
-		fmt.Println("Author: ", result.Note.Author)
-		fmt.Println("Message: ", result.Note.Message)
+		fmt.Printf("Customer created: %v", customer)
 		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(addCmd)
+	customerCmd.AddCommand(registerCmd)
 
-	addCmd.Flags().StringVarP(&author, "author", "a", "YOUR NAME", "The author of the note")
-	addCmd.MarkFlagRequired("author")
-
-	addCmd.Flags().StringVarP(&message, "message", "m", "YOUR MESSAGE", "The message of the note")
-	addCmd.MarkFlagRequired("message")
+	registerCmd.Flags().StringVar(&registerCustomerFirstName, "first-name", "FIRST_NAME", "First name of the customer")
+	registerCmd.MarkFlagRequired("first-name")
+	registerCmd.Flags().StringVar(&registerCustomerLastName, "last-name", "LAST_NAME", "Last name of the customer")
+	registerCmd.MarkFlagRequired("last-name")
+	registerCmd.Flags().StringVar(&registerCustomerEmail, "email", "EMAIL", "Email of the customer")
+	registerCmd.MarkFlagRequired("email")
 }
